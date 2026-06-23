@@ -1,0 +1,30 @@
+# Compiler output (Debug or Release, depending on the configuration)
+Debug/
+Release/
+bin/
+obj/
+build/
+
+# Automatically generated build artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.d
+*.su
+
+# IDE-specific temporary files (Eclipse/STM32CubeIDE/vscode)
+.metadata/
+.settings/
+*.launch
+*.code-workspace
+
+
+# Backups
+MX_Backup/
+*.bak
+
+# Large Tools
+stm32-an+tools/

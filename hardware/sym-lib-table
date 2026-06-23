@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "_twinusb")(type "KiCad")(uri "${KIPRJMOD}/lib_sch/_twinusb.kicad_sym")(options "")(descr ""))
+)

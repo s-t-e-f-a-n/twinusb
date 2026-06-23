@@ -1,0 +1,8 @@
+# Force LF
+*.kicad_pcb text eol=lf
+*.kicad_sch text eol=lf
+*.kicad_pro text eol=lf
+*.kicad_sym text eol=lf
+*.pretty/* text eol=lf
+*.kicad.step text eol=lf
+*.kicad.csv text eol=lf

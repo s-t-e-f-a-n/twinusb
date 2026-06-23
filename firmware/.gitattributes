@@ -1,0 +1,10 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Ensure source files use CRLF consistently to match Windows/CubeIDE
+*.cpp text eol=crlf
+*.hpp text eol=crlf
+*.c text eol=crlf
+*.h text eol=crlf
+*.s text eol=crlf
+*.ld text eol=crlf

@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32G0 (ST-Link)",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/build/Debug/twinusb.stm32.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "device": "STM32G0B1KB",
+            "gdbPath": "gdb-multiarch",
+            "serverpath": "openocd",
+            "searchDir": [
+                "/usr/share/openocd/"
+            ],
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32g0x.cfg"
+            ],
+            "preLaunchTask": "CMake: build",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "raw"
+        }
+    ]
+}
+
