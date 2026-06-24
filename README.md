@@ -1,59 +1,49 @@
-# H₂H³: Twin USB Host Switch × Triple USB Hub (with OLED Telemetry)
+# H₂H³ | Twin USB Host Switch × Triple USB Hub (with OLED Telemetry)
 
-An advanced, STM32-powered USB 2.0 KVM switch in combination with a 3-port Hub and integrated live telemetry displayed on the tiny OLED in a premium, compact two-pieces enclosure.
+**H₂H³** is a compact, STM32 microcontroller-driven USB 2.0 KVM switch and 3-port hub designed to maintain a clean, clutter-free workspace in modern home offices. It enables two computers to seamlessly share a single set of peripherals—like your keyboard, mouse, and flash drives—while delivering live voltage and current telemetry via an integrated OLED display.
 
-When connecting to one Host PC H₂H³ behaves like a simple USB 2.0 hub. Connecting a second host PC is automatically recognized and signalled on the display. A switch-over from one to the other host is just one click on the integrated switch-button.
+> [!NOTE]
+> **Project Status & Contribution:** This project is actively developed. The initial commit delivers roughly 90% of the core KVM switching and telemetry functionality in a fully functional prototype stage.
+>
+> To bring this project to a 100% polished release, **contributions from the open-source community are highly welcome!** Whether you want to optimize edge-case handling in the C++ firmware, implement new USB HID features, or help refine the documentation—feel free to open an issue or submit a Pull Request. Let's build this together!
+
+* **Smart Break-Before-Make Switching:** Advanced, software-controlled VBUS and data line multiplexing ensures safe, glitch-free transitions and isolated power rails between both host PCs.
+* **Integrated 3-Port Hub:** Built-in Genesys Logic controller expands a single shared USB connection into three downstream ports for your everyday desk peripherals.
+* **🚀 Native Host-MCU Communication (Endless Use Cases!):** Unlike dumb KVM switches, the onboard STM32 MCU is wired directly into the hub as a **fourth USB peripheral device**. This allows the MCU to communicate natively with the active Host PC—opening up vast possibilities for custom PC desktop apps, background telemetry logging, hardware automation scripts, or even full USB HID keyboard/mouse emulation.
+* **Live Telemetry Dashboard:** A crisp, integrated 64x32 pixel OLED display provides real-time insights by showing live bus voltage and precise current draw per port.
+* **Ergonomic & Screw-less Enclosure:** Features a clean interface with a discreetly placed rear tactile button to prevent cable snags, all housed in a robust, snap-fit PA12-HP Nylon shell optimized for MJF 3D printing.
+* **Modern C++ Firmware:** Driven by a powerful STM32G0 architecture running a modular, object-oriented C++ firmware stack with hardware-level overcurrent protection.
 
 ![Twin USB Host × Triple USB Hub](assets/TwinUSB_Presentation_small.jpg)
 
 Jump straight to the [📸 Photo Gallery](#-photo-gallery).
 
-My intention designing this: Just for fun using some of my professional engineering skills trying out modern free open source tools with fabrication capabilities of far east located on-demand electronic and 3d printing low-volume manufacturer like JLCPCB.
+## 🔭 Background & Philosophy
 
-With this repository I am sharing with the public the full hardware, enclosure and software design under MIT/CERN OPEN HARDWARE licenses. My wish is that it is useful for educational purposes. Ideas for other use cases than the original KVM switch purpose are heartily welcome...
+H₂H³ represents a personal exploration into modern decentralized manufacturing and open-source engineering. It blends professional design principles with modern open-source software, AI-collaborative programming to refine the C++ firmware, and on-demand fabrication. The fact that an individual engineer can now prototype industrial-grade hardware using low-volume far-east manufacturing is nothing short of incredible.
 
-TwinUSB's Hardware, Enclosure and Software were designed with following tools:
+To give back to the community, the full design files—spanning schematics, mechanics, and source code—are public domain under MIT and CERN Open Hardware licenses. It is intended strictly for educational use, and community-driven remixes are highly encouraged.
 
-* **KiCad 9.0** Schematics entry and PCB design of a 4-layer board embodying all assets for manufacturing.
-* **FreeCad 1.0** Modelling of a two part enclosure intended to hold all electronics without s single screw or any glue.
-* **Visual Studio Code (vscode)** C/C++ Source code entry point, cmake based build tool chain, gdb target debugging (Cortex-Debug), using the STLINK-V3MINIE hardware debugger probe and STM32CubeMx support for HAL configuration.
-* **STM32CubeIDE 2.1.1** Same as with vscode with some differences:
+## 🛠️ Design Stack & Toolchain
 
-| Feature | STM32CubeIDE | VS Code (with official STM32 Extension) |
-| :--- | :--- | :--- |
-| **Compiler (Default)** | GNU Tools for STM32 (`arm-none-eabi-gcc` fork by ST) | STM32CubeCLT (Command Line Tools containing `arm-none-eabi-gcc`) |
-| **Alternative Compiler** | Arm Clang / LLVM | Arm Clang / LLVM |
-| **Build System Generator** | Internal Eclipse CDT Project Builder | CMake |
-| **Underlying Build Tool** | GNU Make (automatically generated) | Ninja (default) or GNU Make |
-| **Project Configuration** | Graphical interface (`.cproject` / `.project` files) | Text-based configuration via `CMakeLists.txt` |
-| **Flashing & Debugging Tool** | ST-LINK GDB Server | ST-LINK GDB Server (via STM32CubeCLT or Cortex-Debug) |
+The hardware, enclosure, and software for H₂H³ were designed using the following tools:
 
----
-
-## 🚀 Key Features
-
-* **Dual-Host Switching:** Connect 3 USB 2.0 peripherals (keyboard, mouse, flash drives) and toggle them between 2 PCs.
-* **Live Telemetry Dashboard:** Integrated 64x32 pixel OLED display showing live bus voltage and current draw per port.
-* **STM32G0 Architecture:** Driven by a powerful, efficient STM32G0 microcontroller with custom C++ firmware.
-* **Ergonomic Design:** Tactile switching button placed discreetly on the back to avoid accidental cable snags, keeping the top interface clean.
-* **Premium Enclosure:** Robust, screw-less, industrial-grade PA12-HP Nylon housing designed in FreeCAD and optimized for high-precision MJF 3D printing.
+* **KiCad 9.0:** Schematic entry and PCB design for the 4-layer board.
+* **FreeCAD 1.0:** 3D modeling of the screw-less, snap-fit two-part enclosure.
+* **Firmware Toolchain:** Developed in modern modular C++ utilizing **STM32CubeMX** for hardware abstraction. Out of the box, the repository supports a dual-development workflow—you can build and debug the firmware seamlessly using either **Visual Studio Code (via CMake/Ninja)** or **STM32CubeIDE**, depending on your preferred environment.
 
 ---
 
 ## 🛠️ Hardware Specification
 
-* **Microcontroller:** ARM Cortex M0 32-bit MCU (STM32G0B1KBU6) with 128 KB Flash, 144 KB RAM running at 64 MHz as a fourth peripheral device of the USB 2.0 Hub
-* **USB 2.0 Hub:** GenesysLogic GL852G USB 2.0 Hub Controller
-* **USB Ports:**
-  * 2x USB-A Male (Host 1 / Host 2)
-  * 3x USB-A Female (Peripheral Ports)
-* **Voltage + Current Telemetry:** Continuous dual host VBUS voltage measurement enables automatic host detection; continuous triple peripheral VBUS current measurement enables full device telemetry.
-* **Hybrid VBUS Muxing:** Automatic VBUS muxer for Hub + Controller power supply combined with a fully software controlled VBUS muxer for a clean break-before-make switch-over technique.
-* **Host USB Data Line Muxing:** Fully software controlled USB data line muxing also for a clean break-before-make switch-over technique.
-* **Switch Button:** Switch-over from one Host to the other + user interface control.
-* **Display:** 64x32 pixel OLED Screen
-* **RGB LED*** Fully programmable (color und brightness) RGB LED
-* **Form Factor:** Ultra-compact desktop footprint (approx. 60 x 20 x 20 mm)
+* **Microcontroller:** ARM Cortex-M0+ 32-bit MCU (STM32G0B1KBU6, 64 MHz, 128 KB Flash, 144 KB RAM), integrated as a 4th peripheral on the hub.
+* **USB 2.0 Hub Controller:** Genesys Logic GL852G.
+* **Physical Interface:** * 2x USB-A Male (Host 1 / Host 2 connections)
+  * 3x USB-A Female (Peripheral downstream ports)
+* **Telemetry Sensors:** Continuous dual-host VBUS voltage sensing (enables auto-detection) and triple-peripheral current monitoring.
+* **Switching Architecture:** Hybrid automatic/software-controlled VBUS muxer combined with hardware USB data line multiplexers.
+* **User Interface:** 64x32 pixel OLED screen, 1x rear tactile switch button, and 1x fully programmable RGB LED (color and brightness).
+* **Form Factor:** Ultra-compact desktop footprint (approx. 60 × 20 × 20 mm).
 
 ---
 
@@ -168,7 +158,7 @@ If you decide to open the `twinusb.stm32.ioc` file to modify pinouts or peripher
 
 ---
 
-## 🛠️ Sourcing the Hardware
+## 🏭 Sourcing the Hardware
 
 ### PCB & Assembly
 
@@ -186,8 +176,8 @@ Let me know if you are interested in the fabrication of the design.
 
 ## 📸 Photo Gallery
 
-| | | |
-|  |  |  |
+| &nbsp; | &nbsp; | &nbsp; |
+| :---: | :---: | :---: |
 | ![1](assets/twinusb_1.png) | ![2](assets/twinusb_2.png) | ![3](assets/twinusb_3.png) |
 | ![4](assets/twinusb_4.png) | ![5](assets/twinusb_5.png) | ![6](assets/twinusb_6.png) |
 | ![8](assets/twinusb_8.png) | ![9](assets/twinusb_9.png) | ![10](assets/twinusb_10.png) |
