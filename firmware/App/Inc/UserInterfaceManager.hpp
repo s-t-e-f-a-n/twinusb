@@ -78,8 +78,8 @@ private:
 
     /** @brief Timing constants of the UI interface. */
     static constexpr uint32_t STARTUP_DURATION_MS = 5000;
-    static constexpr uint32_t SCREENSAVER_TIMEOUT_MS = 10000;
-    static constexpr uint32_t TELEMETRY_PAGE_CYCLE_MS = 3000;
+    static constexpr uint32_t SCREENSAVER_TIMEOUT_MS = 60000;
+    static constexpr uint32_t TELEMETRY_PAGE_CYCLE_MS = 10000;
 
 /** @name Activity Detection
      * @brief Sensors and flags to track system usage and connection changes.

@@ -2,6 +2,8 @@
  * @file LedDriver.hpp
  * @brief Hardware driver for RGB LED using STM32 TIM3 PWM.
  * @details Configured for active-low operation via TIM3 Channels 1, 3, and 4.
+ * @author s-t-e-f-a-n
+ * @date 10.06.2026
  */
 
 #ifndef LEDDRIVER_HPP
@@ -21,8 +23,8 @@ public:
     struct RGB { 
         uint8_t r, g, b; 
         // Constructor
-        RGB(uint8_t _r = 0, uint8_t _g = 0, uint8_t _b = 0) : r(_r), g(_g), b(_b) {}
-
+        constexpr RGB(uint8_t _r = 0, uint8_t _g = 0, uint8_t _b = 0) : r(_r), g(_g), b(_b) {}
+        
         // Copy constructor from volatile
         RGB(const volatile RGB& other) : r(other.r), g(other.g), b(other.b) {}
 
@@ -95,13 +97,28 @@ public:
         currentColor = RGB(r, g, b);
         updateHardware(r, g, b);
     }
-/**
+
+    /**
+     * @brief Overload: Sets RGB duty cycles using an RGB structure object.
+     */
+    void setColor(const RGB& color) {
+        setColor(color.r, color.g, color.b);
+    }
+
+    /**
      * @brief Sets primary color for constant mode.
      */
     void setPrimaryColor(uint8_t r, uint8_t g, uint8_t b) {
         pulsingEnabled = false;
         transitionActive = false;
         setColor(r, g, b);
+    }
+
+    /**
+     * @brief Overload: Sets primary color using an RGB structure object.
+     */
+    void setPrimaryColor(const RGB& color) {
+        setPrimaryColor(color.r, color.g, color.b);
     }
 
     /**
@@ -121,6 +138,17 @@ public:
     }
 
     /**
+     * @brief Overload: Enables breathing effect using an explicit target base color.
+     */
+    void setPulse(bool active, const RGB& baseColor) {
+        if (active) {
+            targetColor = baseColor;
+        }
+        transitionActive = false;
+        pulsingEnabled = active;
+    }
+
+    /**
      * @brief Enables/disables Transition effect.
      */
     void setTransition(uint8_t r1, uint8_t g1, uint8_t b1, uint8_t r2, uint8_t g2, uint8_t b2) {
@@ -130,7 +158,14 @@ public:
         pulsingEnabled = true;
     }
 
-/**
+    /**
+     * @brief Overload: Enables/disables Transition effect using RGB structure objects.
+     */
+    void setTransition(const RGB& c1, const RGB& c2) {
+        setTransition(c1.r, c1.g, c1.b, c2.r, c2.g, c2.b);
+    }
+
+    /**
      * @brief Processes animation logic.
      * @details Call this from a high-frequency Timer ISR (e.g., 50Hz / 20ms).
      */

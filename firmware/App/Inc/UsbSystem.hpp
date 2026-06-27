@@ -32,6 +32,9 @@ public:
     /** @brief Requests a switch to the target host. */
     void requestSwitch(UpstreamType target);
 
+    /** @brief Call this method when the user confirms they have resolved the issue. */
+    void requestFaultRecovery();
+
     /** @brief Gets the currently active upstream host. */
     UpstreamType getActiveUpstream() const { return status.activeUpstream; }
 
@@ -50,6 +53,7 @@ private:
     ConnectionState currentState;     /**< Current state machine stage */
     uint32_t entryTick;               /**< Entry timestamp */
     bool bSwitchRequested;            /**< Flag for state transition */
+    bool bRecoveryRequested = false;  /**< Tracks if the user gave the go-ahead to try a restart */
     UpstreamType targetUpstream;      /**< Requested host */
 
     /** @brief Hardware interface for VBUS detection. */

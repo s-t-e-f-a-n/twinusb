@@ -10,21 +10,15 @@
  */
 
 #include "UsbSystem.hpp"
-
-
-#ifndef LOG_DEBUG
-#define LOG_DEBUG(...) ((void)0)
-#endif
+#include "ConsoleManager.hpp"
 
 namespace h2h3 {
-
 
 /* * Constructor initializes the state machine variables.
  */
 UsbSystem::UsbSystem(SensorManager& sensors)
     : sensorManager(sensors),
-	  // Change this line in UsbSystem.cpp:
-	  status(UpstreamType::NONE, ConnectionState::IDLE, VbusPresenceStatus::NONE, false, 0),
+	  status(),
 	  currentState(ConnectionState::IDLE),
       entryTick(0),
       bSwitchRequested(false),
@@ -114,6 +108,17 @@ h2h3::UpstreamType UsbSystem::probeUpstreamVbus() {
 }
 
 /**
+ * @brief Requests the latched vbus muxer fault to recover.
+  */
+void UsbSystem::requestFaultRecovery() {
+    if (currentState == ConnectionState::FAULT) {
+        bRecoveryRequested = true;
+    } else {
+        LOG_DEBUG("Recovery requested, but system is not in a FAULT state.\r\n");
+    }
+}
+
+/**
  * @brief Main non-blocking state machine loop.
  * @details Executes the host-switching sequence. Call this function repeatedly
  * within the main super-loop or a periodic RTOS task.
@@ -124,9 +129,25 @@ void UsbSystem::runStateMachine() {
 	probeUpstreamVbus();
 
     // Refresh the integrated telemetry snapshot in SystemStatus
-    // Since probeUpstreamVbus() calls sensorManager.poll(), 
-    // the SensorManager is now up-to-date.
     status.telemetry = sensorManager.getTelemetry();
+
+    // Poll the physical hardware fault pins
+    status.activeFault = HardwareManager::getActiveMuxFault();
+
+    // Check for latched vbus muxer fault
+    if (status.activeFault != UpstreamType::NONE) {
+        if (currentState != ConnectionState::FAULT) {
+            LOG_DEBUG("[CRITICAL] Hardware Mux Fault line pulled low! Switching to FAULT state.\r\n");
+            currentState = ConnectionState::FAULT;
+            bRecoveryRequested = false;
+        } 
+        else {
+            // Diagnostic trace: Ensures we see if the fault is constantly hammering the system
+            LOG_DEBUG("[FAULT ACTIVE] System is currently locked in FAULT state.\r\n");
+        }
+    }
+
+    status.usbState = currentState;
 
 	switch (currentState) {
         case ConnectionState::IDLE:
@@ -136,6 +157,34 @@ void UsbSystem::runStateMachine() {
                 status.isDataPathActive = false;
                 entryTick = millis();
                 currentState = ConnectionState::SWITCH_TOGGLE;
+            }
+            else if (status.config.autoFailover) { 
+                // Check if our currently active host has lost its physical VBUS link
+                bool activeHostPresent = false;
+                if (status.activeUpstream == UpstreamType::A) {
+                    activeHostPresent = (static_cast<uint8_t>(status.vbusPresence) & static_cast<uint8_t>(VbusPresenceStatus::HOST_A));
+                } else if (status.activeUpstream == UpstreamType::B) {
+                    activeHostPresent = (static_cast<uint8_t>(status.vbusPresence) & static_cast<uint8_t>(VbusPresenceStatus::HOST_B));
+                }
+
+                // If the active host was pulled out, look for the backup connection
+                if (!activeHostPresent) {
+                    UpstreamType backupHost = getToggleTarget();
+                    
+                    bool backupPresent = false;
+                    if (backupHost == UpstreamType::A) {
+                        backupPresent = (static_cast<uint8_t>(status.vbusPresence) & static_cast<uint8_t>(VbusPresenceStatus::HOST_A));
+                    } else if (backupHost == UpstreamType::B) {
+                        backupPresent = (static_cast<uint8_t>(status.vbusPresence) & static_cast<uint8_t>(VbusPresenceStatus::HOST_B));
+                    }
+
+                    if (backupPresent) {
+                        LOG_DEBUG("[AUTO] Active host disconnected. Failover routing to remaining host...\r\n");
+                        
+                        targetUpstream = backupHost;
+                        bSwitchRequested = true; 
+                    }
+                }
             }
             break;
         case ConnectionState::NEGOTIATING:
@@ -165,9 +214,28 @@ void UsbSystem::runStateMachine() {
             break;
 
         case ConnectionState::FAULT:
-            HardwareManager::resetMuxRoute();
-            HardwareManager::stopHub();
-            status.isDataPathActive = false;
+            // Wait for user confirmation to attempt clearing the hardware latch
+            if (bRecoveryRequested) {
+                LOG_DEBUG("[INFO] Attempting to clear hardware fault latch...\r\n");
+                
+                // Reset the power switches/muxer lines to unlatch the fault flags
+                HardwareManager::clearMuxFault();
+                HAL_Delay(100); // Give the physical lines time to settle
+
+                // Verify if the physical condition has been resolved
+                if (HardwareManager::getActiveMuxFault() != UpstreamType::NONE) {
+                    LOG_DEBUG("[WARNING] Clear rejected: Hardware fault line is still indicating an overload.\r\n");
+                    bRecoveryRequested = false; // Reset request flag, stay in FAULT
+                } else {
+                    LOG_DEBUG("[SUCCESS] Fault cleared. Re-aligning state machine with current host.\r\n");
+                    
+                    bRecoveryRequested = false;
+                    bSwitchRequested = false;
+                    
+                    // Re-sync with whatever upstream connection is currently live/saved
+                    init(status.activeUpstream); 
+                }
+            }
             break;
     }
 }

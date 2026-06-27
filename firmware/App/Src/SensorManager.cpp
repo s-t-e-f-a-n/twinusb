@@ -12,23 +12,89 @@
 // Define the external handle at file scope so it's accessible to all methods in this file
 extern ADC_HandleTypeDef hadc1;
 
+// STM32G0 factory calibration address for internal voltage reference (typically 3.0V baseline)
+#define STM32G0_VREFINT_CAL_ADDR ((uint16_t*)0x1FFF75AA)
+
 namespace h2h3 {
 
     Telemetry SensorManager::currentData = {};
 
+    // --- Persistent Filter States for EMA Smoothing ---
+    namespace {
+        uint32_t emaVbusA  = 0;
+        uint32_t emaVbusB  = 0;
+        uint32_t emaVbusDs = 0;
+        
+        uint32_t emaDs1    = 0;
+        uint32_t emaDs2    = 0;
+        uint32_t emaDs3    = 0;
+    }
+
     /**
-     * @brief Polls all ADC channels and updates the internal currentData object.
-     * * This method iterates through voltage and current sensing channels,
-     * populating the SensorData structure with the latest readings.
+     * @brief Polls all ADC channels, averages noise out via 16x oversampling,
+     * and passes raw data through an EMA low-pass filter before physical conversion.
      */
     void SensorManager::poll() {
-        currentData.voltage.vbusa_mv  = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_0));
-        currentData.voltage.vbusb_mv  = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_1));
-        currentData.voltage.vbusds_mv = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_7));
+        constexpr uint32_t kOversampleCount = 16u;
+        
+        // --- 1. Oversampled Read of VREFINT ---
+        uint32_t sumVrefInt = 0;
+        for (uint32_t i = 0; i < kOversampleCount; ++i) {
+            sumVrefInt += Read_ADC(ADC_CHANNEL_VREFINT);
+        }
+        uint32_t rawVrefInt = (sumVrefInt + (kOversampleCount / 2u)) / kOversampleCount;
+        
+        if (rawVrefInt == 0) {
+            rawVrefInt = 1485; // Fallback to nominal 12-bit value for 1.212V
+        }
+        
+        const uint32_t factoryVRefMv = 3000u;
+        const uint32_t vrefintCal = *STM32G0_VREFINT_CAL_ADDR;
+        const uint32_t liveVRefMv = (factoryVRefMv * vrefintCal) / rawVrefInt;
 
-        currentData.current.ds1_ma    = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_4));
-        currentData.current.ds2_ma    = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_5));
-        currentData.current.ds3_ma    = static_cast<uint16_t>(Read_ADC(ADC_CHANNEL_6));
+        // --- 2. Oversampled Read of Voltage Channels ---
+        uint32_t sumVbusA = 0, sumVbusB = 0, sumVbusDs = 0;
+        for (uint32_t i = 0; i < kOversampleCount; ++i) {
+            sumVbusA  += Read_ADC(ADC_CHANNEL_0);
+            sumVbusB  += Read_ADC(ADC_CHANNEL_1);
+            sumVbusDs += Read_ADC(ADC_CHANNEL_7);
+        }
+        uint32_t rawVbusA  = (sumVbusA  + (kOversampleCount / 2u)) / kOversampleCount;
+        uint32_t rawVbusB  = (sumVbusB  + (kOversampleCount / 2u)) / kOversampleCount;
+        uint32_t rawVbusDs = (sumVbusDs + (kOversampleCount / 2u)) / kOversampleCount;
+
+        // Apply Heavier EMA Low-Pass Filter (Weight: 93.75% Old / 6.25% New)
+        // Formula: (Old * 15 + New) / 16
+        emaVbusA  = (emaVbusA  == 0) ? rawVbusA  : ((emaVbusA  * 63u) + rawVbusA)  >> 6;
+        emaVbusB  = (emaVbusB  == 0) ? rawVbusB  : ((emaVbusB  * 63u) + rawVbusB)  >> 6;
+        emaVbusDs = (emaVbusDs == 0) ? rawVbusDs : ((emaVbusDs * 63u) + rawVbusDs) >> 6;
+
+        currentData.voltage.vbusa_mv  = static_cast<uint16_t>((emaVbusA  * liveVRefMv * kVoltageScale) / kAdcMaxTicks);
+        currentData.voltage.vbusb_mv  = static_cast<uint16_t>((emaVbusB  * liveVRefMv * kVoltageScale) / kAdcMaxTicks);
+        currentData.voltage.vbusds_mv = static_cast<uint16_t>((emaVbusDs * liveVRefMv * kVoltageScale) / kAdcMaxTicks);
+
+        // --- 3. Oversampled Read of Current Channels ---
+        uint32_t sumDs1 = 0, sumDs2 = 0, sumDs3 = 0;
+        for (uint32_t i = 0; i < kOversampleCount; ++i) {
+            sumDs1 += Read_ADC(ADC_CHANNEL_4);
+            sumDs2 += Read_ADC(ADC_CHANNEL_5);
+            sumDs3 += Read_ADC(ADC_CHANNEL_6);
+        }
+        uint32_t rawDs1 = (sumDs1 + (kOversampleCount / 2u)) / kOversampleCount;
+        uint32_t rawDs2 = (sumDs2 + (kOversampleCount / 2u)) / kOversampleCount;
+        uint32_t rawDs3 = (sumDs3 + (kOversampleCount / 2u)) / kOversampleCount;
+
+        // Apply Heavier EMA Low-Pass Filter (Weight: 93.75% Old / 6.25% New)
+        // Formula: (Old * 15 + New) / 16
+        emaDs1    = (emaDs1    == 0) ? rawDs1    : ((emaDs1    * 63u) + rawDs1)    >> 6;
+        emaDs2    = (emaDs2    == 0) ? rawDs2    : ((emaDs2    * 63u) + rawDs2)    >> 6;
+        emaDs3    = (emaDs3    == 0) ? rawDs3    : ((emaDs3    * 63u) + rawDs3)    >> 6;
+
+        const uint32_t liveCurrentMultiplier = (liveVRefMv * 1000000u) / (kAdcMaxTicks * kRShuntMOHm * kAmplifierAv);
+
+        currentData.current.ds1_ma = static_cast<uint16_t>((emaDs1 * liveCurrentMultiplier) / (kCurrentPrecisionScale / 100u));
+        currentData.current.ds2_ma = static_cast<uint16_t>((emaDs2 * liveCurrentMultiplier) / (kCurrentPrecisionScale / 100u));
+        currentData.current.ds3_ma = static_cast<uint16_t>((emaDs3 * liveCurrentMultiplier) / (kCurrentPrecisionScale / 100u));
     }
 
     const Telemetry& SensorManager::getTelemetry() {
@@ -47,7 +113,8 @@ namespace h2h3 {
         ADC_ChannelConfTypeDef sConfig = {0};
         sConfig.Channel = channel;
         sConfig.Rank = ADC_REGULAR_RANK_1;
-        sConfig.SamplingTime = ADC_SAMPLETIME_39CYCLES_5;
+        //sConfig.SamplingTime = ADC_SAMPLETIME_39CYCLES_5;
+        sConfig.SamplingTime = ADC_SAMPLETIME_160CYCLES_5;
 
         if (HAL_ADC_ConfigChannel(&::hadc1, &sConfig) != HAL_OK) {
             return 0;
@@ -83,6 +150,9 @@ namespace h2h3 {
             ADC_CHANNEL_5,
             ADC_CHANNEL_6
         };
+
+        // Calibration
+        HAL_ADCEx_Calibration_Start(&hadc1);
 
         for (uint32_t channel : channels) {
             uint32_t samples[kStartupSampleCount] = {0};

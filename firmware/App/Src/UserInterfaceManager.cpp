@@ -11,7 +11,17 @@
 #include "HardwareManager.hpp"
 #include "ConsoleManager.hpp"
 #include "UsbSystem.hpp"
-#include "ConsoleManager.hpp"
+
+namespace {
+using ColorProfile = h2h3::LedDriver::RGB;
+
+// Color Profile Definitions locally scoped
+constexpr ColorProfile COLOR_RED      { 255,   0,   0 };
+constexpr ColorProfile COLOR_BLUE     {   0,   0,  64 };
+constexpr ColorProfile COLOR_CYAN     {   0, 128, 128 };
+constexpr ColorProfile COLOR_MAGENTA  { 64,   0, 128 };
+constexpr ColorProfile COLOR_WHITE    { 128, 128, 128 };
+}
 
 namespace h2h3 {
 
@@ -52,9 +62,24 @@ void UserInterfaceManager::updateOutputs() {
         }
 
         case UIState::FAULT: {
-            display.printf(0, CENTER_Y, "!!! FAULT !!!");
-            display.printf(0, CENTER_Y + 12, "Code: 0x%04X", 
-                           usbSystem.getStatus().activeAlerts);
+            const SystemStatus snapshot = usbSystem.getStatus();
+
+            // Render standard system status frame layouts (Header/Footer tracking host changes)
+            drawSystemStatus(snapshot);
+
+            // Determine string prefix based on the active fault type
+            const char* faultLabel = "??";
+            if (snapshot.activeFault == UpstreamType::A) {
+                faultLabel = "A ";
+            } else if (snapshot.activeFault == UpstreamType::B) {
+                faultLabel = "B ";
+            } else if (snapshot.activeFault == UpstreamType::BOTH) {
+                faultLabel = "AB";
+            }
+
+            // Render Center Area Info Page dynamically
+            display.printf(0, CENTER_Y,      "%s: !OVL!", faultLabel);
+            display.printf(0, CENTER_Y + 12, "Resolve?");
             break;
         }
 
@@ -69,23 +94,42 @@ void UserInterfaceManager::updateOutputs() {
 
 void UserInterfaceManager::drawSystemStatus(const SystemStatus& status) {
     auto getLinkStatus = [&](UpstreamType port) -> LinkStatus {
+        bool vbusPresent = (port == UpstreamType::A) ? 
+                           (status.vbusPresence == VbusPresenceStatus::HOST_A || status.vbusPresence == VbusPresenceStatus::BOTH) :
+                           (status.vbusPresence == VbusPresenceStatus::HOST_B || status.vbusPresence == VbusPresenceStatus::BOTH);
+
+        if (!vbusPresent) {
+            return LinkStatus::NOT_CONNECTED;
+        }
+
         if (status.activeUpstream == port) {
             // Future logic: Add identification check here (Host vs Charger)
             return LinkStatus::CONNECTED_ACTIVE_UNKNOWN; 
         }
         
-        bool vbusPresent = (port == UpstreamType::A) ? 
-                           (status.vbusPresence == VbusPresenceStatus::HOST_A || status.vbusPresence == VbusPresenceStatus::BOTH) :
-                           (status.vbusPresence == VbusPresenceStatus::HOST_B || status.vbusPresence == VbusPresenceStatus::BOTH);
-        return vbusPresent ? LinkStatus::CONNECTED_IDLE : LinkStatus::NOT_CONNECTED;
+        return LinkStatus::CONNECTED_IDLE;
     };
 
-    // Render Header (A) and Footer (B)
-    const assets::Icon* iconA = getIconForStatus(getLinkStatus(UpstreamType::A));
-    display.drawBitmap(iconA->data, 0, HEADER_Y, BitmapType::RAW, iconA->w, iconA->h);
+    bool blinkOn = (millis() % 1000) < 500;
+    bool isFaultState = (status.usbState == ConnectionState::FAULT);
 
-    const assets::Icon* iconB = getIconForStatus(getLinkStatus(UpstreamType::B));
-    display.drawBitmap(iconB->data, 0, FOOTER_Y, BitmapType::RAW, iconB->w, iconB->h);
+    // Pinpoint fault lines using our updated enum value
+    bool hostAFaulty = isFaultState && (status.activeFault == UpstreamType::A || status.activeFault == UpstreamType::BOTH);
+    bool hostBFaulty = isFaultState && (status.activeFault == UpstreamType::B || status.activeFault == UpstreamType::BOTH);
+
+    // --- Render Upper Status (Host A Line) ---
+    LinkStatus statusA = getLinkStatus(UpstreamType::A);
+    if (!hostAFaulty || blinkOn) {
+        const assets::Icon* iconA = getIconForStatus(statusA);
+        display.drawBitmap(iconA->data, 0, HEADER_Y, BitmapType::RAW, iconA->w, iconA->h);
+    }
+
+    // --- Render Lower Status (Host B Line) ---
+    LinkStatus statusB = getLinkStatus(UpstreamType::B);
+    if (!hostBFaulty || blinkOn) {
+        const assets::Icon* iconB = getIconForStatus(statusB);
+        display.drawBitmap(iconB->data, 0, FOOTER_Y, BitmapType::RAW, iconB->w, iconB->h);
+    }
 }
 
 const assets::Icon* UserInterfaceManager::getIconForStatus(LinkStatus status) {
@@ -193,7 +237,7 @@ void UserInterfaceManager::updateLedStatus() {
 
     // FAULT State handling (Highest Priority)
     if (currentState == UIState::FAULT || status.usbState == ConnectionState::FAULT) {
-        statusLed.setPrimaryColor(255, 0, 0); // Steady Red (Constants kill animation)
+        statusLed.setPrimaryColor(COLOR_RED);
         LOG_DEBUG("UIState::FAULT\r\n");
         return;
     }
@@ -202,7 +246,7 @@ void UserInterfaceManager::updateLedStatus() {
     if (currentState == UIState::STARTUP) {
         // Soft blue breathing effect: maps to targetColor breathing from 0 to target
         // Note: setting pulse via setPulse requires an implicit base color
-        statusLed.setColor(0, 0, 64);
+        statusLed.setColor(COLOR_BLUE);
         statusLed.setPulse(true); // Blue pulsing
         LOG_DEBUG("UIState::STARTUP\r\n");
         return;
@@ -220,33 +264,31 @@ void UserInterfaceManager::updateLedStatus() {
 
         // --- Case 1: Connected, Selected (Host A) | Not Connected (Host B) ---
         if (hostA_connected && hostA_selected && !hostB_connected) {
-            statusLed.setPrimaryColor(0, 128, 128); // Cyan, constant
+            statusLed.setPrimaryColor(COLOR_CYAN);
             LOG_DEBUG("UIState::OPERATIONAL CASE1\r\n");
         }
         
         // --- Case 2: Not Connected (Host A) | Connected, Selected (Host B) ---
         else if (!hostA_connected && hostB_connected && hostB_selected) {
-            statusLed.setPrimaryColor(128, 0, 128); // Magenta, constant
+            statusLed.setPrimaryColor(COLOR_MAGENTA);
             LOG_DEBUG("UIState::OPERATIONAL CASE2\r\n");
         }
         
         // --- Case 3: Connected, Selected (Host A) | Connected, Not Selected (Host B) ---
         else if (hostA_connected && hostA_selected && hostB_connected && !hostB_selected) {
-            // Transitions color1 <-> color2 (Cyan <-> White)
-            statusLed.setTransition(0, 128, 128, 128, 128, 128); 
+            statusLed.setTransition(COLOR_CYAN, COLOR_WHITE); 
             LOG_DEBUG("UIState::OPERATIONAL CASE3\r\n");
         }
         
         // --- Case 4: Connected, Not Selected (Host A) | Connected, Selected (Host B) ---
         else if (hostA_connected && !hostA_selected && hostB_connected && hostB_selected) {
-            // Transitions color1 <-> color2 (Magenta <-> White)
-            statusLed.setTransition(128, 0, 128, 128, 128, 128); 
+            statusLed.setTransition(COLOR_MAGENTA, COLOR_WHITE); 
             LOG_DEBUG("UIState::OPERATIONAL CASE4\r\n");
         }
         
         // --- Case 5: Connected, Not Selected (Host A) | Connected, Not Selected (Host B) ---
         else if (hostA_connected && !hostA_selected && hostB_connected && !hostB_selected) {
-            statusLed.setPrimaryColor(128, 128, 128); // White constant (NOT DEFINED state)
+            statusLed.setPrimaryColor(COLOR_WHITE);
             LOG_DEBUG("UIState::OPERATIONAL CASE5\r\n");
         }
     }
@@ -295,8 +337,14 @@ void UserInterfaceManager::handleSwitchEvent(SwitchEvent event) {
             break;
 
         case SwitchEvent::LONG_PRESS:
-            LOG_DEBUG("Switch: Long Press Detected - Triggering Reset\r\n");
-            // Implement system reset logic here
+            if (currentState == UIState::FAULT) {
+                // Long Keypress requests the resolution from latched vbus muxer overload fault"
+                LOG_DEBUG("Switch: Long Press in FAULT mode -> triggering recovery\r\n");
+                usbSystem.requestFaultRecovery();
+            } else {
+                LOG_DEBUG("Switch: Long Press Detected -> Triggering Nothing ;-)\r\n");
+                // no further implementation yet
+            }
             break;
 
         default:

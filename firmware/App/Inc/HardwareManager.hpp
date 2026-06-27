@@ -75,6 +75,19 @@ public:
     static void resetMuxRoute();
 
     /**
+     * @brief Probes the active-low physical fault lines from the VBUS muxer.
+     * @return UpstreamType indicating A, B, BOTH, or NONE if no fault is active.
+     */
+    static UpstreamType getActiveMuxFault();
+
+    /**
+     * @brief Cycle or toggle lines required to clear a latched hardware fault.
+     * @details Resets the power distribution switches/muxer to clear the latched flag
+     * after an over-current condition has been resolved.
+     */
+    static void clearMuxFault();
+
+    /**
      * @brief Releases the Hub reset line (RESETn).
      */
     static void startHub();

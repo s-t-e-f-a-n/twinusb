@@ -83,6 +83,28 @@ UpstreamType HardwareManager::init() {
             ? UpstreamType::A : UpstreamType::B;
 }
 
+/**
+ * @brief Reads for active fault status on either VBUS Muxer status output.
+  */
+ UpstreamType HardwareManager::getActiveMuxFault() {
+    bool faultA = (HAL_GPIO_ReadPin(FLT_HOSTA_VBUSn_GPIO_Port, FLT_HOSTA_VBUSn_Pin) == GPIO_PIN_RESET);
+    bool faultB = (HAL_GPIO_ReadPin(FLT_HOSTB_VBUSn_GPIO_Port, FLT_HOSTB_VBUSn_Pin) == GPIO_PIN_RESET);
+    
+    if (faultA) return faultB ? UpstreamType::BOTH : UpstreamType::A;
+    return faultB ? UpstreamType::B : UpstreamType::NONE;
+}
+
+void HardwareManager::clearMuxFault() {
+    // Latched fault flags typically clear when the chip's enable line is cycled
+    // or when the offending channel power is briefly forced off.
+    powerDownHost();
+    HAL_Delay(50); // Give bulk capacitance time to discharge
+    
+    // De-assert and re-assert the Mux routing lines to clear chip latch state
+    resetMuxRoute();
+    HAL_Delay(10);
+}
+
 
 /**
  * @brief Powers up the specified Upstream host and initializes the Hub.

@@ -40,8 +40,24 @@
     private:
         static Telemetry currentData;
 
+        // --- Constants for deriving the ADC hardware check at startup
         static constexpr uint8_t kStartupSampleCount = 8;
         static constexpr uint8_t kStartupStabilityPercent = 10;
+
+        // --- Physical Hardware Constants ---
+        static constexpr uint32_t kVRefMv          = 3300u;      // 3.3V Reference
+        static constexpr uint32_t kAdcMaxTicks     = 4095u;      // 12-bit ADC max value
+        static constexpr uint32_t kRShuntMOHm      = 39u;        // 39 mOhm
+        static constexpr uint32_t kAmplifierAv     = 50u;        // 50 V/V Gain
+        static constexpr uint32_t kVoltageScale    = 2u;         // Your VBUS divider
+
+        // --- Fixed-Point Math Scaling ---
+        static constexpr uint32_t kCurrentPrecisionScale = 100000u; // Scale factor to preserve precision
+
+        // --- Automated Compile-Time Calculation ---
+        // Multiplier = (VRef * 1,000,000) / (4095 * Rshunt_mOhm * Av)
+        static constexpr uint32_t kCurrentMultiplier = (kVRefMv * 1000000u) / (kAdcMaxTicks * kRShuntMOHm * kAmplifierAv);
+
 
         /**
          * @brief Reads a raw 12-bit value from a specified ADC channel.
