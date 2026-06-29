@@ -36,6 +36,8 @@ The hardware, enclosure, and software for H₂H³ were designed using the follow
 
 ## 🛠️ Hardware Specification
 
+<img src="assets/twinusb_hardware.svg" width="30%" alt="H₂H³ Hardware Block Diagram">
+
 * **Microcontroller:** ARM Cortex-M0+ 32-bit MCU (STM32G0B1KBU6, 64 MHz, 128 KB Flash, 144 KB RAM), integrated as a 4th peripheral on the hub.
 * **USB 2.0 Hub Controller:** Genesys Logic GL852G.
 * **Physical Interface:** * 2x USB-A Male (Host 1 / Host 2 connections)
@@ -178,6 +180,10 @@ Let me know if you are interested in the fabrication of the design.
 
 | &nbsp; | &nbsp; | &nbsp; |
 | :---: | :---: | :---: |
+| ![21](assets/twinusb_21.png) | ![22](assets/twinusb_22.png) | ![23](assets/twinusb_23.png) |
+| ![11](assets/twinusb_11.png) | ![12](assets/twinusb_12.png) | ![13](assets/twinusb_13.png) |
+| ![14](assets/twinusb_14.png) | ![15](assets/twinusb_15.png) | ![16](assets/twinusb_16.png) |
+| ![17](assets/twinusb_17.png) | ![18](assets/twinusb_18.png) | ![19](assets/twinusb_19.png) |
 | ![1](assets/twinusb_1.png) | ![2](assets/twinusb_2.png) | ![3](assets/twinusb_3.png) |
 | ![4](assets/twinusb_4.png) | ![5](assets/twinusb_5.png) | ![6](assets/twinusb_6.png) |
 | ![8](assets/twinusb_8.png) | ![9](assets/twinusb_9.png) | ![10](assets/twinusb_10.png) |
