@@ -2,6 +2,10 @@
 
 **H₂H³** is a compact, STM32 microcontroller-driven USB 2.0 KVM switch and 3-port hub designed to maintain a clean, clutter-free workspace in modern home offices. It enables two computers to seamlessly share a single set of peripherals—like your keyboard, mouse, and flash drives—while delivering live voltage and current telemetry via an integrated OLED display.
 
+<p align="center">
+  <img src="assets/TwinUSB_Presentation_small.jpg" width="40%" alt="H₂H³ Presentation">
+</p>
+
 > [!NOTE]
 > **Project Status & Contribution:** This project is actively developed. The initial commit delivers roughly 90% of the core KVM switching and telemetry functionality in a fully functional prototype stage.
 >
@@ -14,9 +18,9 @@
 * **Ergonomic & Screw-less Enclosure:** Features a clean interface with a discreetly placed rear tactile button to prevent cable snags, all housed in a robust, snap-fit PA12-HP Nylon shell optimized for MJF 3D printing.
 * **Modern C++ Firmware:** Driven by a powerful STM32G0 architecture running a modular, object-oriented C++ firmware stack with hardware-level overcurrent protection.
 
-![Twin USB Host × Triple USB Hub](assets/TwinUSB_Presentation_small.jpg)
+🖼️ Jump straight to the [Photo Gallery](#-photo-gallery).
 
-Jump straight to the [📸 Photo Gallery](#-photo-gallery).
+🏪 **Hardware Available:** Skip the assembly line and grab a fully functional H₂H³ on [Tindie](https://www.tindie.com/products/43013/).
 
 ## 🔭 Background & Philosophy
 
@@ -36,7 +40,7 @@ The hardware, enclosure, and software for H₂H³ were designed using the follow
 
 ## 🛠️ Hardware Specification
 
-<img src="assets/twinusb_hardware.svg" width="30%" alt="H₂H³ Hardware Block Diagram">
+<img src="assets/twinusb_hardware.svg" width="40%" alt="H₂H³ Hardware Block Diagram">
 
 * **Microcontroller:** ARM Cortex-M0+ 32-bit MCU (STM32G0B1KBU6, 64 MHz, 128 KB Flash, 144 KB RAM), integrated as a 4th peripheral on the hub.
 * **USB 2.0 Hub Controller:** Genesys Logic GL852G.
@@ -46,6 +50,14 @@ The hardware, enclosure, and software for H₂H³ were designed using the follow
 * **Switching Architecture:** Hybrid automatic/software-controlled VBUS muxer combined with hardware USB data line multiplexers.
 * **User Interface:** 64x32 pixel OLED screen, 1x rear tactile switch button, and 1x fully programmable RGB LED (color and brightness).
 * **Form Factor:** Ultra-compact desktop footprint (approx. 60 × 20 × 20 mm).
+
+<table border="0" style="border: none; border-collapse: collapse;">
+  <tr>
+    <td style="border: none; padding: 10px;"><img src="assets/twinusb_25.png" alt="25"></td>
+    <td style="border: none; padding: 10px;"><img src="assets/twinusb_24.png" alt="24"></td>
+    <td style="border: none; padding: 10px;"><img src="assets/twinusb_26.png" alt="26"></td>
+  </tr>
+</table>
 
 ---
 
@@ -169,10 +181,6 @@ The schematics and PCB layout are located in the `/hardware` folder, designed in
 ### Enclosure
 
 Print the shell components located in the `/enclosure` folder. Nylon (SLS/MJF technique) is highly recommended for that professional, textured matte finish and mechanical durability.
-
----
-
-Let me know if you are interested in the fabrication of the design.
 
 ---
 
